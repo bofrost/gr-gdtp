@@ -22,5 +22,5 @@
 ########################################################################
 install(FILES
     api.h
-    DESTINATION include/gdtp
+    gdtp_wrapper.h DESTINATION include/gdtp
 )
