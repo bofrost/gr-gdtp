@@ -26,11 +26,13 @@
  */
 
 #include "qa_gdtp.h"
+#include "qa_gdtp_wrapper.h"
 
 CppUnit::TestSuite *
 qa_gdtp::suite()
 {
   CppUnit::TestSuite *s = new CppUnit::TestSuite("gdtp");
+  s->addTest(gr::gdtp::qa_gdtp_wrapper::suite());
 
   return s;
 }

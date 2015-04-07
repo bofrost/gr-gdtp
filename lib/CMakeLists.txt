@@ -22,20 +22,23 @@
 ########################################################################
 include(GrPlatform) #define LIB_SUFFIX
 
-include_directories(${Boost_INCLUDE_DIR})
+find_package(GDTP REQUIRED)
+
+include_directories(${Boost_INCLUDE_DIR} ${GDTP_INCLUDE_DIR})
 link_directories(${Boost_LIBRARY_DIRS})
 
 list(APPEND gdtp_sources
+    gdtp_wrapper_impl.cc
 )
 
 set(gdtp_sources "${gdtp_sources}" PARENT_SCOPE)
 if(NOT gdtp_sources)
-	MESSAGE(STATUS "No C++ sources... skipping lib/")
-	return()
+    MESSAGE(STATUS "No C++ sources... skipping lib/")
+    return()
 endif(NOT gdtp_sources)
 
 add_library(gnuradio-gdtp SHARED ${gdtp_sources})
-target_link_libraries(gnuradio-gdtp ${Boost_LIBRARIES} ${GNURADIO_ALL_LIBRARIES})
+target_link_libraries(gnuradio-gdtp ${Boost_LIBRARIES} ${GNURADIO_ALL_LIBRARIES} ${GDTP_LIBRARIES})
 set_target_properties(gnuradio-gdtp PROPERTIES DEFINE_SYMBOL "gnuradio_gdtp_EXPORTS")
 
 if(APPLE)
@@ -63,6 +66,7 @@ include_directories(${CPPUNIT_INCLUDE_DIRS})
 list(APPEND test_gdtp_sources
     ${CMAKE_CURRENT_SOURCE_DIR}/test_gdtp.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/qa_gdtp.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/qa_gdtp_wrapper.cc
 )
 
 add_executable(test-gdtp ${test_gdtp_sources})
