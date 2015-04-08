@@ -23,6 +23,7 @@
 #endif
 
 #include <gnuradio/io_signature.h>
+#include <gnuradio/block_detail.h>
 
 #include <iostream>
 #include <string>
@@ -134,33 +135,46 @@ namespace gr {
 
     void gdtp_wrapper_impl::pack(std::string inport_name, FlowId id, pmt::pmt_t msg)
     {
-        std::cout << "pack called on portname " << inport_name << std::endl;
+        if (debug_) std::cout << "pack called on portname " << inport_name << std::endl;
+        size_t msg_len;
+        const char *sdu;
 
-        //get PDU
-        pmt::pmt_t len(pmt::car(msg));
-        pmt::pmt_t blob(pmt::cdr(msg));
-        if (!pmt::is_blob(blob))
-            throw std::runtime_error("PMT must be blob");
+        if (pmt::is_eof_object(msg)) {
+            message_port_pub(mac_out, pmt::PMT_EOF);
+            detail().get()->set_done(true);
+            return;
+        } else if (pmt::is_symbol(msg)) {
+            std::string str;
+            str = pmt::symbol_to_string(msg);
+            msg_len = str.length();
+            sdu = str.data();
+        } else if(pmt::is_pair(msg)) {
+            msg_len = pmt::blob_length(pmt::cdr(msg));
+            sdu = reinterpret_cast<const char *>(pmt::blob_data(pmt::cdr(msg)));
+        } else {
+            throw std::invalid_argument("GDTP expects PDUs or strings");
+            return;
+        }
 
-        std::shared_ptr<Sdu> frame = std::make_shared<Sdu>((const unsigned char *)pmt::blob_data(blob), (const unsigned char *)pmt::blob_data(blob) + pmt::blob_length(blob));
+        std::shared_ptr<Sdu> frame = std::make_shared<Sdu>(sdu, sdu + msg_len);
         gdtp_.handle_frame_from_above(frame, id);
     }
 
 
     void gdtp_wrapper_impl::unpack(std::string inport_name, pmt::pmt_t msg)
     {
-        std::cout << "Unpack called on port " << inport_name << std::endl;
+        if (debug_) std::cout << "Unpack called on port " << inport_name << std::endl;
 
-        //get PDU
-        pmt::pmt_t len(pmt::car(msg));
-        pmt::pmt_t blob(pmt::cdr(msg));
-        if (!pmt::is_blob(blob))
+        if (pmt::is_pair(msg)) {
+            size_t msg_len = pmt::blob_length(pmt::cdr(msg));
+            const char* msdu = reinterpret_cast<const char *>(pmt::blob_data(pmt::cdr(msg)));
+            Sdu frame(msdu, msdu + msg_len);
+            if (debug_) std::cout << "Receiving PDU with size " << frame.size() << std::endl;
+            gdtp_.handle_frame_from_below(frame, DEFAULT_LOWER_LAYER_PORT);
+        } else {
             throw std::runtime_error("PMT must be blob");
-
-        Sdu frame((const unsigned char *)pmt::blob_data(blob), (const unsigned char *)pmt::blob_data(blob) + pmt::blob_length(blob));
-        gdtp_.handle_frame_from_below(frame, DEFAULT_LOWER_LAYER_PORT);
+        }
     }
-
 
 
     void gdtp_wrapper_impl::tx_handler()
@@ -173,11 +187,12 @@ namespace gr {
             {
                 boost::this_thread::interruption_point();
                 while (true) {
-                    Sdu sdu_for_lower_layer;
+                    Sdu pdu;
                     // this call may block if no frames are present
-                    gdtp_.get_frame_for_below(sdu_for_lower_layer, DEFAULT_LOWER_LAYER_PORT);
+                    gdtp_.get_frame_for_below(pdu, DEFAULT_LOWER_LAYER_PORT);
+                    if (debug_) std::cout << "Transmitting PDU with size " << pdu.size() << std::endl;
 
-                    pmt::pmt_t msg = pmt::make_blob(sdu_for_lower_layer.data(), sdu_for_lower_layer.size());
+                    pmt::pmt_t msg = pmt::make_blob(pdu.data(), pdu.size());
                     message_port_pub(mac_out, pmt::cons(pmt::PMT_NIL, msg));
 
                     // FIXME: wait for txover event
@@ -203,9 +218,7 @@ namespace gr {
                 boost::this_thread::interruption_point();
                 while (true) {
                     std::shared_ptr<Sdu> data = gdtp_.get_frame_for_above(id);
-                    if (debug_) {
-                        std::cout << "receivd: " << data->size() << std::endl;
-                    }
+                    if (debug_) std::cout << "received: " << data->size() << " byte." << std::endl;
                     pmt::pmt_t msg = pmt::make_blob(data->data(), data->size());
                     message_port_pub(pmt::mp(outport_name), pmt::cons(pmt::PMT_NIL, msg));
                 }
