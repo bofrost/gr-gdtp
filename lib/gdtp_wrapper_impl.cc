@@ -65,7 +65,7 @@ namespace gr {
         max_seq_no_(max_seq_no),
         scheduler_(scheduler)
     {
-        // register message ports
+        // register data message ports
         std::string inport_name("fromMAC");
         std::string outport_name("toMAC");
         mac_in = pmt::mp(inport_name);
@@ -74,6 +74,9 @@ namespace gr {
         message_port_register_in(mac_in);
         set_msg_handler(mac_in, boost::bind(&gdtp_wrapper_impl::unpack, this, inport_name, _1));
         message_port_register_out(mac_out);
+
+        // register port for FER
+        message_port_register_out(pmt::mp("fer"));
 
         // configure and init gdtp instance
         gdtp_.set_scheduler_type(scheduler_);
@@ -129,7 +132,7 @@ namespace gr {
             set_msg_handler(inport, boost::bind(&gdtp_wrapper_impl::pack, this, inport_name, id, _1));
 
             // create thread for outgoing msgs for this flow, i.e., when libgdtp has frames
-            threads_.push_back(new boost::thread(boost::bind(&gdtp_wrapper_impl::flowout_handler, this, outport_base, id)));
+            threads_.push_back(new boost::thread(boost::bind(&gdtp_wrapper_impl::flowout_handler, this, outport_base, i)));
         }
     }
 
@@ -209,7 +212,7 @@ namespace gr {
 
     void gdtp_wrapper_impl::flowout_handler(std::string outport_name, FlowId id)
     {
-        std::cout << "flowout handler thread for " << outport_name << " started." << std::endl;
+        std::cout << "flowout handler thread for " << outport_name << " with id " << id << " started." << std::endl;
 
         try
         {
@@ -221,6 +224,11 @@ namespace gr {
                     if (debug_) std::cout << "received: " << data->size() << " byte." << std::endl;
                     pmt::pmt_t msg = pmt::make_blob(data->data(), data->size());
                     message_port_pub(pmt::mp(outport_name), pmt::cons(pmt::PMT_NIL, msg));
+
+                    // publish FER estimate
+                    flow_stats_t stats = gdtp_.get_stats(id);
+                    pmt::pmt_t pdu = pmt::make_f32vector(1, stats.arq.fer * 100);
+                    message_port_pub(pmt::mp("fer"), pmt::cons( pmt::PMT_NIL, pdu ));
                 }
             }
         }
