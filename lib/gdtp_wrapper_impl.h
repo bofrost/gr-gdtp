@@ -51,7 +51,7 @@ private:
     std::string scheduler_;
 
     // local block members
-    libgdtp::Gdtp gdtp_;
+    std::unique_ptr<libgdtp::Gdtp> gdtp_;
     PortMap gdtpPorts_;
     pmt::pmt_t mac_in, mac_out;
     boost::ptr_vector<boost::thread> threads_;

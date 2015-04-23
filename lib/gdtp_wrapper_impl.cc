@@ -79,10 +79,11 @@ namespace gr {
         message_port_register_out(pmt::mp("fer"));
 
         // configure and init gdtp instance
-        gdtp_.set_scheduler_type(scheduler_);
-        gdtp_.set_default_local_address(src_address_);
-        gdtp_.set_default_destination_address(dest_address_);
-        gdtp_.initialize();
+        gdtp_ = std::unique_ptr<libgdtp::Gdtp>(new libgdtp::Gdtp());
+        gdtp_->set_scheduler_type(scheduler_);
+        gdtp_->set_default_local_address(src_address_);
+        gdtp_->set_default_destination_address(dest_address_);
+        gdtp_->initialize();
 
         // register flow message ports
         int num_flows = 1; // FIXME: limited to one at the moment
@@ -125,7 +126,7 @@ namespace gr {
                             addr_src_);
 
             // allocate flow
-            FlowId id = gdtp_.allocate_flow(i, props);
+            FlowId id = gdtp_->allocate_flow(i, props);
             gdtpPorts_[inport_name] = id;
 
             // setup handler for "incoming" msgs
@@ -160,7 +161,7 @@ namespace gr {
         }
 
         std::shared_ptr<Sdu> frame = std::make_shared<Sdu>(sdu, sdu + msg_len);
-        gdtp_.handle_frame_from_above(frame, id);
+        gdtp_->handle_frame_from_above(frame, id);
     }
 
 
@@ -173,7 +174,7 @@ namespace gr {
             const char* msdu = reinterpret_cast<const char *>(pmt::blob_data(pmt::cdr(msg)));
             Sdu frame(msdu, msdu + msg_len);
             if (debug_) std::cout << "Receiving PDU with size " << frame.size() << std::endl;
-            gdtp_.handle_frame_from_below(frame, DEFAULT_LOWER_LAYER_PORT);
+            gdtp_->handle_frame_from_below(frame, DEFAULT_LOWER_LAYER_PORT);
         } else {
             throw std::runtime_error("PMT must be blob");
         }
@@ -192,14 +193,14 @@ namespace gr {
                 while (true) {
                     Sdu pdu;
                     // this call may block if no frames are present
-                    gdtp_.get_frame_for_below(pdu, DEFAULT_LOWER_LAYER_PORT);
+                    gdtp_->get_frame_for_below(pdu, DEFAULT_LOWER_LAYER_PORT);
                     if (debug_) std::cout << "Transmitting PDU with size " << pdu.size() << std::endl;
 
                     pmt::pmt_t msg = pmt::make_blob(pdu.data(), pdu.size());
                     message_port_pub(mac_out, pmt::cons(pmt::PMT_NIL, msg));
 
                     // FIXME: wait for txover event
-                    gdtp_.set_frame_transmitted(DEFAULT_LOWER_LAYER_PORT);
+                    gdtp_->set_frame_transmitted(DEFAULT_LOWER_LAYER_PORT);
                 }
             }
         }
@@ -220,13 +221,13 @@ namespace gr {
             {
                 boost::this_thread::interruption_point();
                 while (true) {
-                    std::shared_ptr<Sdu> data = gdtp_.get_frame_for_above(id);
+                    std::shared_ptr<Sdu> data = gdtp_->get_frame_for_above(id);
                     if (debug_) std::cout << "received: " << data->size() << " byte." << std::endl;
                     pmt::pmt_t msg = pmt::make_blob(data->data(), data->size());
                     message_port_pub(pmt::mp(outport_name), pmt::cons(pmt::PMT_NIL, msg));
 
                     // publish FER estimate
-                    flow_stats_t stats = gdtp_.get_stats(id);
+                    flow_stats_t stats = gdtp_->get_stats(id);
                     pmt::pmt_t pdu = pmt::make_f32vector(1, stats.arq.fer * 100);
                     message_port_pub(pmt::mp("fer"), pmt::cons( pmt::PMT_NIL, pdu ));
                 }
