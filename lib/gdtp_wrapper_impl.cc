@@ -119,6 +119,7 @@ namespace gr {
 
             // construct properties
             FlowProperty props((reliable_ == true ? RELIABLE : UNRELIABLE),
+                            99,
                            (addr_mode_ == "implicit" ? IMPLICIT : EXPLICIT),
                             max_seq_no_,
                             ack_timeout_,
@@ -190,18 +191,16 @@ namespace gr {
             while (true)
             {
                 boost::this_thread::interruption_point();
-                while (true) {
-                    Sdu pdu;
-                    // this call may block if no frames are present
-                    gdtp_->get_frame_for_below(pdu, DEFAULT_LOWER_LAYER_PORT);
-                    if (debug_) std::cout << "Transmitting PDU with size " << pdu.size() << std::endl;
+                Sdu pdu;
+                // this call may block if no frames are present
+                gdtp_->get_frame_for_below(pdu, DEFAULT_LOWER_LAYER_PORT);
+                if (debug_) std::cout << "Transmitting PDU with size " << pdu.size() << std::endl;
 
-                    pmt::pmt_t msg = pmt::make_blob(pdu.data(), pdu.size());
-                    message_port_pub(mac_out, pmt::cons(pmt::PMT_NIL, msg));
+                pmt::pmt_t msg = pmt::make_blob(pdu.data(), pdu.size());
+                message_port_pub(mac_out, pmt::cons(pmt::PMT_NIL, msg));
 
-                    // FIXME: wait for txover event
-                    gdtp_->set_frame_transmitted(DEFAULT_LOWER_LAYER_PORT);
-                }
+                // FIXME: wait for txover event
+                gdtp_->set_frame_transmitted(DEFAULT_LOWER_LAYER_PORT);
             }
         }
         catch(boost::thread_interrupted)
@@ -220,17 +219,15 @@ namespace gr {
             while (true)
             {
                 boost::this_thread::interruption_point();
-                while (true) {
-                    std::shared_ptr<Sdu> data = gdtp_->get_frame_for_above(id);
-                    if (debug_) std::cout << "received: " << data->size() << " byte." << std::endl;
-                    pmt::pmt_t msg = pmt::make_blob(data->data(), data->size());
-                    message_port_pub(pmt::mp(outport_name), pmt::cons(pmt::PMT_NIL, msg));
+                std::shared_ptr<Sdu> data = gdtp_->get_frame_for_above(id);
+                if (debug_) std::cout << "received: " << data->size() << " byte." << std::endl;
+                pmt::pmt_t msg = pmt::make_blob(data->data(), data->size());
+                message_port_pub(pmt::mp(outport_name), pmt::cons(pmt::PMT_NIL, msg));
 
-                    // publish FER estimate
-                    flow_stats_t stats = gdtp_->get_stats(id);
-                    pmt::pmt_t pdu = pmt::make_f32vector(1, stats.arq.fer * 100);
-                    message_port_pub(pmt::mp("fer"), pmt::cons( pmt::PMT_NIL, pdu ));
-                }
+                // publish FER estimate
+                flow_stats_t stats = gdtp_->get_stats(id);
+                pmt::pmt_t pdu = pmt::make_f32vector(1, stats.arq.fer * 100);
+                message_port_pub(pmt::mp("fer"), pmt::cons( pmt::PMT_NIL, pdu ));
             }
         }
         catch(boost::thread_interrupted)
