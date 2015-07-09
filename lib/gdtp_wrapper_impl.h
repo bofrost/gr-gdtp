@@ -28,8 +28,6 @@
 
 using namespace libgdtp;
 
-#define DEFAULT_LOWER_LAYER_PORT 1
-
 namespace gr {
 namespace gdtp {
 

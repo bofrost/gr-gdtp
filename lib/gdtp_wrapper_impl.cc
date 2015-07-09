@@ -81,7 +81,7 @@ namespace gr {
         // configure and init gdtp instance
         gdtp_ = std::unique_ptr<libgdtp::Gdtp>(new libgdtp::Gdtp());
         gdtp_->set_scheduler_type(scheduler_);
-        gdtp_->set_default_local_address(src_address_);
+        gdtp_->set_default_source_address(src_address_);
         gdtp_->set_default_destination_address(dest_address_);
         gdtp_->initialize();
 
@@ -118,7 +118,7 @@ namespace gr {
             message_port_register_in(inport);
 
             // construct properties
-            FlowProperty props((reliable_ == true ? RELIABLE : UNRELIABLE),
+            FlowProperties props((reliable_ == true ? RELIABLE : UNRELIABLE),
                             99,
                            (addr_mode_ == "implicit" ? IMPLICIT : EXPLICIT),
                             max_seq_no_,
@@ -141,8 +141,8 @@ namespace gr {
     void gdtp_wrapper_impl::pack(std::string inport_name, FlowId id, pmt::pmt_t msg)
     {
         if (debug_) std::cout << "pack called on portname " << inport_name << std::endl;
-        size_t msg_len;
-        const char *sdu;
+        size_t payload_len;
+        const char *payload;
 
         if (pmt::is_eof_object(msg)) {
             message_port_pub(mac_out, pmt::PMT_EOF);
@@ -151,18 +151,18 @@ namespace gr {
         } else if (pmt::is_symbol(msg)) {
             std::string str;
             str = pmt::symbol_to_string(msg);
-            msg_len = str.length();
-            sdu = str.data();
+            payload_len = str.length();
+            payload = str.data();
         } else if(pmt::is_pair(msg)) {
-            msg_len = pmt::blob_length(pmt::cdr(msg));
-            sdu = reinterpret_cast<const char *>(pmt::blob_data(pmt::cdr(msg)));
+            payload_len = pmt::blob_length(pmt::cdr(msg));
+            payload = reinterpret_cast<const char *>(pmt::blob_data(pmt::cdr(msg)));
         } else {
             throw std::invalid_argument("GDTP expects PDUs or strings");
             return;
         }
 
-        std::shared_ptr<Sdu> frame = std::make_shared<Sdu>(sdu, sdu + msg_len);
-        gdtp_->handle_frame_from_above(frame, id);
+        std::shared_ptr<Data> sdu = std::make_shared<Data>(payload, payload + payload_len);
+        gdtp_->handle_data_from_above(sdu, id);
     }
 
 
@@ -173,9 +173,9 @@ namespace gr {
         if (pmt::is_pair(msg)) {
             size_t msg_len = pmt::blob_length(pmt::cdr(msg));
             const char* msdu = reinterpret_cast<const char *>(pmt::blob_data(pmt::cdr(msg)));
-            Sdu frame(msdu, msdu + msg_len);
+            Data frame(msdu, msdu + msg_len);
             if (debug_) std::cout << "Receiving PDU with size " << frame.size() << std::endl;
-            gdtp_->handle_frame_from_below(frame, DEFAULT_LOWER_LAYER_PORT);
+            gdtp_->handle_data_from_below(frame, DEFAULT_BELOW_PORT_ID);
         } else {
             throw std::runtime_error("PMT must be blob");
         }
@@ -191,16 +191,16 @@ namespace gr {
             while (true)
             {
                 boost::this_thread::interruption_point();
-                Sdu pdu;
+                Data pdu;
                 // this call may block if no frames are present
-                gdtp_->get_frame_for_below(pdu, DEFAULT_LOWER_LAYER_PORT);
+                gdtp_->get_data_for_below(pdu, DEFAULT_BELOW_PORT_ID);
                 if (debug_) std::cout << "Transmitting PDU with size " << pdu.size() << std::endl;
 
                 pmt::pmt_t msg = pmt::make_blob(pdu.data(), pdu.size());
                 message_port_pub(mac_out, pmt::cons(pmt::PMT_NIL, msg));
 
                 // FIXME: wait for txover event
-                gdtp_->set_frame_transmitted(DEFAULT_LOWER_LAYER_PORT);
+                gdtp_->set_data_transmitted(DEFAULT_BELOW_PORT_ID);
             }
         }
         catch(boost::thread_interrupted)
@@ -219,13 +219,14 @@ namespace gr {
             while (true)
             {
                 boost::this_thread::interruption_point();
-                std::shared_ptr<Sdu> data = gdtp_->get_frame_for_above(id);
-                if (debug_) std::cout << "received: " << data->size() << " byte." << std::endl;
-                pmt::pmt_t msg = pmt::make_blob(data->data(), data->size());
+
+                std::shared_ptr<Data> sdu = gdtp_->get_data_for_above(id);
+                if (debug_) std::cout << "received: " << sdu->size() << " byte." << std::endl;
+                pmt::pmt_t msg = pmt::make_blob(sdu->data(), sdu->size());
                 message_port_pub(pmt::mp(outport_name), pmt::cons(pmt::PMT_NIL, msg));
 
                 // publish FER estimate
-                flow_stats_t stats = gdtp_->get_stats(id);
+                FlowStats stats = gdtp_->get_stats(id);
                 pmt::pmt_t pdu = pmt::make_f32vector(1, stats.arq.fer * 100);
                 message_port_pub(pmt::mp("fer"), pmt::cons( pmt::PMT_NIL, pdu ));
             }
