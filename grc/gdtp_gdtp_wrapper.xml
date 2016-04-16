@@ -39,17 +39,8 @@
   <param>
     <name>Reliable</name>
     <key>reliable</key>
-    <value>False</value>
-    <type>bool</type>
-
-    <option>
-      <name>Enable</name>
-      <key>True</key>
-    </option>
-    <option>
-      <name>Disable</name>
-      <key>False</key>
-    </option>
+    <value>[0]</value>
+    <type>int_vector</type>
   </param>    
   
   <param>

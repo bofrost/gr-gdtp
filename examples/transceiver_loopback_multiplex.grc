@@ -290,7 +290,7 @@
     </param>
     <param>
       <key>reliable</key>
-      <value>True</value>
+      <value>[1,0]</value>
     </param>
     <param>
       <key>scheduler</key>
@@ -718,7 +718,7 @@
     </param>
     <param>
       <key>reliable</key>
-      <value>True</value>
+      <value>[1,0]</value>
     </param>
     <param>
       <key>scheduler</key>

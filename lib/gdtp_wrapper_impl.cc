@@ -41,7 +41,7 @@ namespace gr {
   namespace gdtp {
 
     gdtp_wrapper::sptr
-    gdtp_wrapper::make(bool debug, uint64_t src_addr, uint64_t dest_addr, bool reliable, std::string addr_mode, std::string addr_src, int ack_timeout, int max_retry, int max_seq_no, std::string scheduler, int num_flows)
+    gdtp_wrapper::make(bool debug, uint64_t src_addr, uint64_t dest_addr, const std::vector<int> &reliable, std::string addr_mode, std::string addr_src, int ack_timeout, int max_retry, int max_seq_no, std::string scheduler, int num_flows)
     {
       return gnuradio::get_initial_sptr
         (new gdtp_wrapper_impl(debug, src_addr, dest_addr, reliable, addr_mode, addr_src, ack_timeout, max_retry, max_seq_no, scheduler, num_flows));
@@ -50,7 +50,7 @@ namespace gr {
     /*
      * The private constructor
      */
-    gdtp_wrapper_impl::gdtp_wrapper_impl(bool debug, uint64_t src_addr, uint64_t dest_addr, bool reliable, std::string addr_mode, std::string addr_src, int ack_timeout, int max_retry, int max_seq_no, std::string scheduler, int num_flows)
+    gdtp_wrapper_impl::gdtp_wrapper_impl(bool debug, uint64_t src_addr, uint64_t dest_addr, const std::vector<int> &reliable, std::string addr_mode, std::string addr_src, int ack_timeout, int max_retry, int max_seq_no, std::string scheduler, int num_flows)
       : gr::block("gdtp_wrapper",
               gr::io_signature::make(0, 0, 0),
               gr::io_signature::make(0, 0, 0)),
@@ -116,7 +116,7 @@ namespace gr {
             message_port_register_in(inport);
 
             // construct properties
-            FlowProperties props((reliable_ == true ? RELIABLE : UNRELIABLE),
+            FlowProperties props((reliable_.at(i) != 0 ? RELIABLE : UNRELIABLE),
                             99,
                            (addr_mode_ == "implicit" ? IMPLICIT : EXPLICIT),
                             max_seq_no_,
