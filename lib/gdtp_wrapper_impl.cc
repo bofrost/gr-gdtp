@@ -175,7 +175,7 @@ namespace gr {
             const char* msdu = reinterpret_cast<const char *>(pmt::blob_data(pmt::cdr(msg)));
             Data frame(msdu, msdu + msg_len);
             if (debug_) std::cout << "Receiving PDU with size " << frame.size() << std::endl;
-            gdtp_->handle_data_from_below(frame, DEFAULT_BELOW_PORT_ID);
+            gdtp_->handle_data_from_below(DEFAULT_BELOW_PORT_ID, frame);
         } else {
             throw std::runtime_error("PMT must be blob");
         }
@@ -193,7 +193,7 @@ namespace gr {
                 boost::this_thread::interruption_point();
                 Data pdu;
                 // this call may block if no frames are present
-                gdtp_->get_data_for_below(pdu, DEFAULT_BELOW_PORT_ID);
+                gdtp_->get_data_for_below(DEFAULT_BELOW_PORT_ID, pdu);
                 if (debug_) std::cout << "Transmitting PDU with size " << pdu.size() << std::endl;
 
                 pmt::pmt_t msg = pmt::make_blob(pdu.data(), pdu.size());
