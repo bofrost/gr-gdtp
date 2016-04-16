@@ -47,6 +47,7 @@ private:
     int max_retry_;
     int max_seq_no_;
     std::string scheduler_;
+    int num_flows;
 
     // local block members
     std::unique_ptr<libgdtp::Gdtp> gdtp_;
@@ -59,7 +60,7 @@ private:
     void flowout_handler(std::string outport_name, FlowId id);
 
 public:
-    gdtp_wrapper_impl(bool debug, uint64_t src_addr, uint64_t dest_addr, bool reliable, std::string addr_mode, std::string addr_src, int ack_timeout, int max_retry, int max_seq_no, std::string scheduler);
+    gdtp_wrapper_impl(bool debug, uint64_t src_addr, uint64_t dest_addr, bool reliable, std::string addr_mode, std::string addr_src, int ack_timeout, int max_retry, int max_seq_no, std::string scheduler, int num_flows);
     ~gdtp_wrapper_impl();
 
     // Where all the action really happens

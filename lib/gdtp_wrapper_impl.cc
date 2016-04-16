@@ -41,16 +41,16 @@ namespace gr {
   namespace gdtp {
 
     gdtp_wrapper::sptr
-    gdtp_wrapper::make(bool debug, uint64_t src_addr, uint64_t dest_addr, bool reliable, std::string addr_mode, std::string addr_src, int ack_timeout, int max_retry, int max_seq_no, std::string scheduler)
+    gdtp_wrapper::make(bool debug, uint64_t src_addr, uint64_t dest_addr, bool reliable, std::string addr_mode, std::string addr_src, int ack_timeout, int max_retry, int max_seq_no, std::string scheduler, int num_flows)
     {
       return gnuradio::get_initial_sptr
-        (new gdtp_wrapper_impl(debug, src_addr, dest_addr, reliable, addr_mode, addr_src, ack_timeout, max_retry, max_seq_no, scheduler));
+        (new gdtp_wrapper_impl(debug, src_addr, dest_addr, reliable, addr_mode, addr_src, ack_timeout, max_retry, max_seq_no, scheduler, num_flows));
     }
 
     /*
      * The private constructor
      */
-    gdtp_wrapper_impl::gdtp_wrapper_impl(bool debug, uint64_t src_addr, uint64_t dest_addr, bool reliable, std::string addr_mode, std::string addr_src, int ack_timeout, int max_retry, int max_seq_no, std::string scheduler)
+    gdtp_wrapper_impl::gdtp_wrapper_impl(bool debug, uint64_t src_addr, uint64_t dest_addr, bool reliable, std::string addr_mode, std::string addr_src, int ack_timeout, int max_retry, int max_seq_no, std::string scheduler, int num_flows)
       : gr::block("gdtp_wrapper",
               gr::io_signature::make(0, 0, 0),
               gr::io_signature::make(0, 0, 0)),
@@ -63,7 +63,8 @@ namespace gr {
         ack_timeout_(ack_timeout),
         max_retry_(max_retry),
         max_seq_no_(max_seq_no),
-        scheduler_(scheduler)
+        scheduler_(scheduler),
+        num_flows(num_flows)
     {
         // register data message ports
         std::string inport_name("fromMAC");
@@ -86,9 +87,6 @@ namespace gr {
         gdtp_->initialize();
 
         // register flow message ports
-        int num_flows = 1; // FIXME: limited to one at the moment
-        if(num_flows != 1)
-            throw std::invalid_argument("Only a single flow is supported through this block at the moment.");
         register_flows(num_flows, "flowin", "flowout");
 
         // start transmit thread
