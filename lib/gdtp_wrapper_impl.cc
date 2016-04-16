@@ -132,7 +132,7 @@ namespace gr {
             set_msg_handler(inport, boost::bind(&gdtp_wrapper_impl::pack, this, inport_name, id, _1));
 
             // create thread for outgoing msgs for this flow, i.e., when libgdtp has frames
-            threads_.push_back(new boost::thread(boost::bind(&gdtp_wrapper_impl::flowout_handler, this, outport_base, i)));
+            threads_.push_back(new boost::thread(boost::bind(&gdtp_wrapper_impl::flowout_handler, this, outport_name, i)));
         }
     }
 
