@@ -1,10 +1,11 @@
+MAIN_TMPL = """\
 <?xml version="1.0"?>
 <block>
   <name>GDTP</name>
   <key>gdtp_gdtp_wrapper</key>
   <category>gdtp</category>
   <import>import gdtp</import>
-  <make>gdtp.gdtp_wrapper($debug, $src_addr, $dest_addr, $reliable, $addr_mode, $addr_source, $ack_timeout, $max_retry, $max_seq_no, $scheduler, $num_flows)</make>
+  <make>gdtp.gdtp_wrapper(\$debug, \$src_addr, \$dest_addr, \$reliable, \$addr_mode, \$addr_source, \$ack_timeout, \$max_retry, \$max_seq_no, \$scheduler, \$num_flows)</make>
   
   <param>
     <name>Debug</name>
@@ -105,11 +106,27 @@
     <value>1</value>
     <type>int</type>
   </param>
-  
+  #for $n in range($max_nflows)
+  <param>
+    <name>Flow$(n): Reliable</name>
+    <key>reliable$(n)</key>
+    <value>True</value>
+    <type>bool</type>
+    <hide>\#if \$num_flows() > $(n) then 'none' else 'all'#</hide>
+    <option>
+      <name>Yes</name>
+      <key>True</key>
+    </option>
+    <option>
+      <name>No</name>
+      <key>False</key>
+    </option>
+  </param>
+  #end for
   <sink>
     <name>flowin</name>
     <type>message</type>
-    <nports>$num_flows</nports>
+    <nports>\$num_flows</nports>
     <optional>1</optional>
   </sink>
 
@@ -129,7 +146,7 @@
   <source>
     <name>flowout</name>
     <type>message</type>
-    <nports>$num_flows</nports>
+    <nports>\$num_flows</nports>
     <optional>1</optional>
   </source>  
 
@@ -141,3 +158,16 @@
   </source>
 
 </block>
+"""
+
+
+def parse_tmpl(_tmpl, **kwargs):
+    from Cheetah import Template
+    return str(Template.Template(_tmpl, kwargs))
+
+max_num_flows = 32
+
+import sys
+open('./gdtp_gdtp_wrapper.xml', 'w').write(parse_tmpl(MAIN_TMPL,
+                                                      max_nflows=max_num_flows,
+                                                      ))

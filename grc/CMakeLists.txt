@@ -17,6 +17,13 @@
 # the Free Software Foundation, Inc., 51 Franklin Street,
 # Boston, MA 02110-1301, USA.
 
+ADD_CUSTOM_COMMAND( OUTPUT gdtp_gdtp_wrapper.xml
+                    COMMAND python ${CMAKE_CURRENT_SOURCE_DIR}/gdtp_gdtp_wrapper.py
+                    DEPENDS gdtp_gdtp_wrapper.py
+                    COMMENT "Generating XML-Block Code" )
+
+add_custom_target(gdtp_gdtp_xml_blocks ALL DEPENDS gdtp_gdtp_wrapper.xml)
+                    
 install(FILES
-    gdtp_gdtp_wrapper.xml DESTINATION share/gnuradio/grc/blocks
+    ${CMAKE_CURRENT_BINARY_DIR}/gdtp_gdtp_wrapper.xml DESTINATION share/gnuradio/grc/blocks
 )
