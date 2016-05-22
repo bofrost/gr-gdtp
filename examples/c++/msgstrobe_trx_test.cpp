@@ -32,7 +32,7 @@ using namespace gr;
 int main(int argc, char **argv)
 {
     bool debug = true;
-    const std::vector<int> reliable(1, 1);
+    bool reliable = true;
     std::string addr_mode("explicit");
     std::string addr_src("tun0");
     int ack_timeout = 100;
@@ -52,8 +52,10 @@ int main(int argc, char **argv)
     // create the blocks
     blocks::message_strobe::sptr strobe = blocks::message_strobe::make(pmt::intern("TEST"), period);
     blocks::random_pdu::sptr pdu = blocks::random_pdu::make(min_bytes, max_bytes, 0xaa, 2);
-    gdtp::gdtp_wrapper::sptr tx = gdtp::gdtp_wrapper::make(debug, 1, 2, reliable, addr_mode, addr_src, ack_timeout, max_retry, max_seq_no, scheduler);
-    gdtp::gdtp_wrapper::sptr rx = gdtp::gdtp_wrapper::make(debug, 2, 1, reliable, addr_mode, addr_src, ack_timeout, max_retry, max_seq_no, scheduler);
+    gdtp::gdtp_wrapper::sptr tx = gdtp::gdtp_wrapper::make(debug, 1, 2, addr_mode, addr_src, ack_timeout, max_retry, max_seq_no, scheduler);
+    tx->set_reliable(reliable);
+    gdtp::gdtp_wrapper::sptr rx = gdtp::gdtp_wrapper::make(debug, 2, 1, addr_mode, addr_src, ack_timeout, max_retry, max_seq_no, scheduler);
+    rx->set_reliable(reliable);
     blocks::message_debug::sptr debug_sink = blocks::message_debug::make();
 
     // connect the blocks together

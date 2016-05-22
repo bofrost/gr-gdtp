@@ -31,7 +31,7 @@ using namespace libgdtp;
 namespace gr {
 namespace gdtp {
 
-typedef std::map<std::string, FlowId> PortMap;
+typedef std::map<int, FlowId> PortMap;
 
 class gdtp_wrapper_impl : public gdtp_wrapper
 {
@@ -40,7 +40,7 @@ private:
     bool debug_;
     Addr src_address_;
     Addr dest_address_;
-    const std::vector<int> &reliable_;
+    std::vector<bool> reliable_;
     std::string addr_mode_;
     std::string addr_src_;
     int ack_timeout_;
@@ -51,18 +51,21 @@ private:
 
     // local block members
     std::unique_ptr<libgdtp::Gdtp> gdtp_;
-    PortMap gdtpPorts_;
+    PortMap gdtpPorts_; //TODO: würde Vektor auch tun, da jetzt int->FlowId
     pmt::pmt_t mac_in, mac_out;
     boost::ptr_vector<boost::thread> threads_;
 
     // block methods
     void tx_handler();
     void flowout_handler(std::string outport_name, FlowId id);
+    FlowProperties createProperties(int flow);
 
 public:
-    gdtp_wrapper_impl(bool debug, uint64_t src_addr, uint64_t dest_addr, const std::vector<int> &reliable, std::string addr_mode, std::string addr_src, int ack_timeout, int max_retry, int max_seq_no, std::string scheduler, int num_flows);
+    gdtp_wrapper_impl(bool debug, uint64_t src_addr, uint64_t dest_addr, std::string addr_mode, std::string addr_src, int ack_timeout, int max_retry, int max_seq_no, std::string scheduler, int num_flows);
     ~gdtp_wrapper_impl();
 
+    // Setters
+    void set_reliable(bool reliable, int flow);
     // Where all the action really happens
     void register_flows(int num_flows, const char *inport_base, const char *outport_base);
     void pack(std::string portName, FlowId id, pmt::pmt_t msg);

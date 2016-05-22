@@ -5,8 +5,13 @@ MAIN_TMPL = """\
   <key>gdtp_gdtp_wrapper</key>
   <category>gdtp</category>
   <import>import gdtp</import>
-  <make>gdtp.gdtp_wrapper(\$debug, \$src_addr, \$dest_addr, \$reliable, \$addr_mode, \$addr_source, \$ack_timeout, \$max_retry, \$max_seq_no, \$scheduler, \$num_flows)</make>
-  
+  <make>gdtp.gdtp_wrapper(\$debug, \$src_addr, \$dest_addr, \$addr_mode, \$addr_source, \$ack_timeout, \$max_retry, \$max_seq_no, \$scheduler, \$num_flows)
+#for $n in range($max_nflows)
+\#if \$num_flows() > $n
+self.\$(id).set_reliable(\$reliable$(n),$(n))
+\#end if
+#end for
+  </make>
   <param>
     <name>Debug</name>
     <key>debug</key>
@@ -36,14 +41,7 @@ MAIN_TMPL = """\
     <value>2</value>
     <type>int</type>
   </param>
-  
-  <param>
-    <name>Reliable</name>
-    <key>reliable</key>
-    <value>[0]</value>
-    <type>int_vector</type>
-  </param>    
-  
+   
   <param>
     <name>Addressing Mode</name>
     <key>addr_mode</key>
@@ -105,6 +103,12 @@ MAIN_TMPL = """\
     <key>num_flows</key>
     <value>1</value>
     <type>int</type>
+    #for $n in range(1, $max_nflows+1)
+    <option>
+        <name>$(n)</name>
+        <key>$n</key>
+    </option>
+    #end for
   </param>
   #for $n in range($max_nflows)
   <param>

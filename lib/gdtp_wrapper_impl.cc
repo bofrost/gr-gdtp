@@ -41,16 +41,16 @@ namespace gr {
   namespace gdtp {
 
     gdtp_wrapper::sptr
-    gdtp_wrapper::make(bool debug, uint64_t src_addr, uint64_t dest_addr, const std::vector<int> &reliable, std::string addr_mode, std::string addr_src, int ack_timeout, int max_retry, int max_seq_no, std::string scheduler, int num_flows)
+    gdtp_wrapper::make(bool debug, uint64_t src_addr, uint64_t dest_addr, std::string addr_mode, std::string addr_src, int ack_timeout, int max_retry, int max_seq_no, std::string scheduler, int num_flows)
     {
       return gnuradio::get_initial_sptr
-        (new gdtp_wrapper_impl(debug, src_addr, dest_addr, reliable, addr_mode, addr_src, ack_timeout, max_retry, max_seq_no, scheduler, num_flows));
+        (new gdtp_wrapper_impl(debug, src_addr, dest_addr, addr_mode, addr_src, ack_timeout, max_retry, max_seq_no, scheduler, num_flows));
     }
 
     /*
      * The private constructor
      */
-    gdtp_wrapper_impl::gdtp_wrapper_impl(bool debug, uint64_t src_addr, uint64_t dest_addr, const std::vector<int> &reliable, std::string addr_mode, std::string addr_src, int ack_timeout, int max_retry, int max_seq_no, std::string scheduler, int num_flows)
+    gdtp_wrapper_impl::gdtp_wrapper_impl(bool debug, uint64_t src_addr, uint64_t dest_addr, std::string addr_mode, std::string addr_src, int ack_timeout, int max_retry, int max_seq_no, std::string scheduler, int num_flows)
       : gr::block("gdtp_wrapper",
               gr::io_signature::make(0, 0, 0),
               gr::io_signature::make(0, 0, 0)),
@@ -59,12 +59,12 @@ namespace gr {
         dest_address_(dest_addr),
         addr_mode_(addr_mode),
         addr_src_(addr_src),
-        reliable_(reliable),
         ack_timeout_(ack_timeout),
         max_retry_(max_retry),
         max_seq_no_(max_seq_no),
         scheduler_(scheduler),
-        num_flows(num_flows)
+        num_flows(num_flows),
+        reliable_(num_flows,false)
     {
         // register data message ports
         std::string inport_name("fromMAC");
@@ -93,6 +93,15 @@ namespace gr {
         threads_.push_back(new boost::thread(boost::bind(&gdtp_wrapper_impl::tx_handler, this)));
     }
 
+    void gdtp_wrapper_impl::set_reliable(bool reliable, int flow = 0)
+    {
+        if(flow < 0 || flow >= num_flows) {
+            throw std::invalid_argument("Number of flows exceeded. Adjust num_flows first!");
+        }
+        reliable_[flow]=reliable;
+        FlowProperties props = createProperties(flow);
+        gdtp_->modify_properties(gdtpPorts_[flow], props); //TODO: Port richtig adressieren!!!
+    }
 
     void gdtp_wrapper_impl::register_flows(int num_flows, const char *inport_base, const char *outport_base)
     {
@@ -116,17 +125,11 @@ namespace gr {
             message_port_register_in(inport);
 
             // construct properties
-            FlowProperties props((reliable_.at(i) != 0 ? RELIABLE : UNRELIABLE),
-                            99,
-                           (addr_mode_ == "implicit" ? IMPLICIT : EXPLICIT),
-                            max_seq_no_,
-                            ack_timeout_,
-                            max_retry_,
-                            addr_src_);
+            FlowProperties props = createProperties(i);
 
             // allocate flow
             FlowId id = gdtp_->allocate_flow(i, props);
-            gdtpPorts_[inport_name] = id;
+            gdtpPorts_[i] = id;
 
             // setup handler for "incoming" msgs
             set_msg_handler(inport, boost::bind(&gdtp_wrapper_impl::pack, this, inport_name, id, _1));
@@ -136,6 +139,17 @@ namespace gr {
         }
     }
 
+    FlowProperties gdtp_wrapper_impl::createProperties(int flow)
+    {
+        return FlowProperties((reliable_.at(flow) ? RELIABLE : UNRELIABLE),
+                            99,
+                           (addr_mode_ == "implicit" ? IMPLICIT : EXPLICIT),
+                            max_seq_no_,
+                            ack_timeout_,
+                            max_retry_,
+                            addr_src_);
+    }
+    
     void gdtp_wrapper_impl::pack(std::string inport_name, FlowId id, pmt::pmt_t msg)
     {
         if (debug_) std::cout << "pack called on portname " << inport_name << std::endl;
